@@ -1,0 +1,841 @@
+<html>
+<head>
+	<title></title>
+	<style>
+	body { margin: 0; background: #111; overflow: hidden; color: #fff; font-family: monospace;}
+	pre {color: #fff;}
+	canvas { width: 100%; height: 100% }
+	#bubble, .info, #botspk {position: absolute;}
+	.info, #output {z-index: 9; padding: 12px;}
+	#bubble, #botspk {top: 0px; right: 12px;
+		width: 200px; text-align: right;}
+		button { cursor: pointer;  text-align: center; }
+/*		button:hover {background: #333;}
+		button:active {background: #ccc;}*/
+		textarea {border:none; outline: none; color: #fff;}
+	form {margin:4px 0; padding: 0; }
+</style>
+</head>
+<body>
+ 
+
+<div id="botspk"><div id="output"></div></div>
+
+
+<div class="info">
+<form onsubmit="sendrant();return false">
+<button type="submit" value="Send"  >&gt;</button>
+
+<input type="text" size="45" name="isay" id="expert" autocomplete="off" value="<adj> <noun> has <adv> <verb.ed> a <noun>" >
+</form>
+
+<select selected="Fred" style="display: none;"></select>
+
+
+<form onSubmit="return sendMessage()">
+<button type="submit" value="Send"  >&gt;</button>
+<input type="text" size="40" name="message" id="message" autocomplete="off"  placeholder="">
+</form>
+
+</div>
+
+	<script src="js/three.min.js"></script>
+	<script src='js/OrbitControls.min.js'></script>
+    <script src='js/tween2.js'></script>
+	<script src="js/GLTFLoader.js"></script>
+	<script src="js/rant.min.js"></script>
+    <script src="js/rivescript.min.js"></script>
+ 
+
+	<script>
+	var speaking = false; 
+	var reverse = false;
+	var moveit = 0.1;
+	var keyboard;
+	var scene = new THREE.Scene();
+	var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+function focusin() {
+console.log('focus')
+}
+
+function focusout() {
+console.log('lost')
+}
+
+// chatbot
+var rs = new RiveScript();
+
+rs.loadFile([
+	"js/brain.rive"
+]).then(onReady).catch(onError);
+
+rs.setSubroutine('fancyJSObject', function(rs, args){
+});
+
+function onReady() {
+	rs.sortReplies();
+}
+
+function onError(err, filename, lineno) {
+}
+
+function sendMessage () {
+if (!speaking) {} else {return;}
+scene.getObjectByProperty( 'name', 'tooth', true ).visible = true;
+
+speaking = true;
+var text  = document.getElementById("message").value;
+
+rs.reply("soandso", text, this).then(function(reply) {
+		reply = reply.replace(/\n/g, "<br>");
+		document.getElementById("output").innerHTML =  reply;
+		lips(reply);
+		spk(reply);
+
+	}).catch(function(e) {
+		window.alert(e.message + "\n" + e.line);
+		console.log(e);
+	});
+
+
+  setTimeout(function () {
+  speaking = false;
+  scene.getObjectByProperty( 'name', 'tooth', true ).visible = false;
+document.getElementById("message").value =  '';
+  }, 70/rate * text.length);
+
+	return false;
+}
+
+
+// send bot direct message / print to output
+// function sendMessage() {
+// if (!speaking) {} else {return;}
+// scene.getObjectByProperty( 'name', 'tooth', true ).visible = true;
+
+// speaking = true; 
+// var text  = document.getElementById("input").value;
+// lips(text);
+// spk(text);
+
+//   setTimeout(function () {
+//   speaking = false;
+//   scene.getObjectByProperty( 'name', 'tooth', true ).visible = false;
+//   }, 70/rate * text.length);
+
+// }
+
+
+
+	var renderer = new THREE.WebGLRenderer( { alpha: true, antialias: true } );
+
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.gammaInput = true;
+	renderer.gammaOutput = true;
+	document.body.appendChild( renderer.domElement );
+
+var light = new THREE.AmbientLight( 0xffffff);
+light.intensity = 0.6;
+scene.add( light );
+//
+var light = new THREE.PointLight( 0xffffff, 1, 60 );
+light.position.set( 0, 5, 5 );
+scene.add( light );
+
+// camera
+var pivot = new THREE.Object3D();
+pivot.add(camera);
+scene.add(pivot);
+camera.position.z = 6;
+camera.position.y = 1;
+
+// groups
+var hero = new THREE.Group();
+hero.position.set(0,-1,0);
+scene.add( hero );
+
+var selection = new THREE.Group();
+scene.add( selection );
+
+var selectpivot = new THREE.Group();
+selection.add( selectpivot );
+selectpivot.rotation.y = Math.PI*6;
+
+var character = new THREE.Group();
+character.scale.set(10,10,10);
+character.rotation.set(0,-Math.PI/2,0);
+scene.add( character );
+
+// shadow
+var shdtex = new THREE.TextureLoader().load( 'man/shdw.png' );
+shdtex.magFilter = THREE.NearestFilter;
+shdtex.minFilter = THREE.LinearMipMapLinearFilter;
+
+var shdgeometry = new THREE.PlaneBufferGeometry( 4, 2, 1 );
+var shdmaterial = new THREE.MeshBasicMaterial( {color: 0xffff00, map:shdtex, transparent:true, opacity:0.2} );
+var shdw = new THREE.Mesh( shdgeometry, shdmaterial );
+shdw.rotation.x= -Math.PI/2;
+shdw.position.z= 1;
+shdw.position.y= -0.8;
+selectpivot.add( shdw );
+
+
+
+//groundplane
+var geometry = new THREE.PlaneBufferGeometry( 30, 30, 1, 1 );
+var mapmaterial = new THREE.MeshBasicMaterial( { color:0x222222} );
+var mapplane = new THREE.Mesh( geometry, mapmaterial );
+mapplane.name = 'mapplane';
+mapplane.rotation.set(-Math.PI/2,0,0);
+mapplane.position.set(0,-0.9,0);
+scene.add( mapplane );
+
+
+// controls
+var controls = new THREE.OrbitControls( camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.9;
+controls.enableZoom = true;
+controls.maxDistance = 20;
+controls.minDistance = 2.6;
+controls.enablePan = false;
+controls.maxPolarAngle = Math.PI * 0.55;
+
+
+var coltexture = new THREE.TextureLoader().load( 'img/dude.png' );
+coltexture.magFilter = THREE.NearestFilter;
+coltexture.minFilter = THREE.LinearMipMapLinearFilter;
+
+
+// dude
+var loader = new THREE.GLTFLoader();
+var filepath = "models/dude.glb";
+loader.load(filepath, function (gltf) {
+
+  gltf.scene.traverse(function (node) {
+      if (node.isMesh) mesh = node;
+  });
+
+mesh.material = new THREE.MeshLambertMaterial( {
+color: 0xcccccc,
+map: coltexture,
+side  : THREE.DoubleSide,
+morphTargets: true
+} ) ;
+
+mesh.scale.set(5,5,5);
+mesh.position.set(0,0,0);
+mesh.rotation.set(Math.PI/2,0,Math.PI/2);
+character.add(mesh);
+mesh.morphTargetInfluences[0] = 1;
+}); // dude gltf loader
+
+
+// tooth
+var loader = new THREE.BufferGeometryLoader();
+
+loader.load(
+'models/tooth.json',
+function ( geometry ) {
+	var material = new THREE.MeshBasicMaterial( { color:0xeeeeee
+ } );
+	var object = new THREE.Mesh( geometry, material );
+	object.scale.set(5,5,5);
+	object.position.set(0,0,0.55);
+	object.rotation.set(0,-Math.PI/2,0);
+	object.name = 'tooth';
+	character.add( object );
+	object.visible = false;
+}
+);
+
+
+loader.load(
+'models/mouth.json',
+function ( geometry ) {
+	var material = new THREE.MeshBasicMaterial( { color:0x220000
+ } );
+	var object = new THREE.Mesh( geometry, material );
+	object.scale.set(5,5,12);
+	object.position.set(0,0,0.55);
+	object.rotation.set(0,-Math.PI/2,0);
+	object.name = 'tooth';
+	character.add( object );
+},
+function ( err ) {
+	// console.log( 'An error happened' );
+}
+);
+// eyes
+var geometry = new THREE.SphereBufferGeometry( 0.24, 60, 60 );
+
+var eyematerial = new THREE.MeshStandardMaterial({color: 0x000000, roughness: 0.1
+});
+
+var envMap = new THREE.TextureLoader().load('man/refl.png');
+envMap.mapping = THREE.SphericalReflectionMapping;
+eyematerial.envMap = envMap;
+
+// eye LEFT
+var eyel = new THREE.Mesh( geometry, eyematerial );
+eyel.position.set(0.7,1.9,1);
+eyel.rotation.set(0,-Math.PI/2,0);
+character.add( eyel );
+//eye RIGHT
+var eyer = eyel.clone();
+eyer.position.set(-0.7,1.9,1);
+character.add(eyer);
+
+//lid LEFT
+var geometry = new THREE.SphereBufferGeometry( 0.3, 30, 30, 0, Math.PI  );
+
+var lidmaterial = new THREE.MeshBasicMaterial({color: 0x583030});
+var lidl = new THREE.Mesh( geometry, lidmaterial );
+lidl.scale.set(1.01,1.01,1.01);
+lidl.rotation.set(-Math.PI/1,0,Math.PI/2);
+lidl.position.set(-0.7,1.9,1);
+character.add(lidl);
+//
+var lidr = lidl.clone();
+lidr.position.set(0,-1.39,0);
+lidr.rotation.set(0,Math.PI/20,0);
+lidl.add(lidr);
+
+// resize
+window.addEventListener('resize', onWindowResize, false);
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+
+
+// KEYS
+var keyboard = {
+    _pressed: {},
+
+LEFT: 37,
+UP: 38,
+RIGHT: 39,
+DOWN: 40,
+
+isDown: function(keyCode) {
+    return this._pressed[keyCode];
+},
+
+onKeydown: function(event) {
+    this._pressed[event.keyCode] = true;
+},
+
+onKeyup: function(event) {
+    delete this._pressed[event.keyCode];
+}
+};
+
+
+// player movement update
+function playerupdate() {
+    if (keyboard.isDown(keyboard.LEFT))   {
+    	selectpivot.rotation.y = -Math.PI*1.5;   
+        selection.position.x -= moveit; 
+        xhero.walk();
+		shdw.position.z= -1;
+    }
+
+    if (keyboard.isDown(keyboard.RIGHT))   {
+    	selectpivot.rotation.y = Math.PI*1.5;
+        selection.position.x += moveit; 
+        xhero.walk();
+		shdw.position.z= -1;
+    }
+	if (keyboard.isDown(keyboard.UP))   {
+    	selectpivot.rotation.y = -Math.PI*3;
+        selection.position.z -= moveit; 
+		reverse = true;
+        xhero.walk();
+		shdw.position.z= 1;
+    }
+
+    if (keyboard.isDown(keyboard.DOWN))   {
+    	selectpivot.rotation.y = Math.PI*6;
+        selection.position.z += moveit; 
+        reverse = false;
+        xhero.walk();
+		shdw.position.z= 1;
+    }
+// smoothing lerps
+hero.rotation.x = (hero.position.z - selection.position.z) * 0.5;
+// hero.rotation.z = -(hero.position.x - selection.position.x) * 1.1;
+hero.rotation.y = (selectpivot.rotation.y - hero.rotation.y) / 2;
+//position
+hero.position.x += (selection.position.x - hero.position.x)*0.2;
+hero.position.z += (selection.position.z - hero.position.z)*0.2;
+//fix
+// shdw.rotation.y=0;
+shdw.rotation.x=-Math.PI/2;
+
+}// move player
+
+
+window.addEventListener('keyup', function(event) { keyboard.onKeyup(event);
+idle(); }, false);
+window.addEventListener('keydown', function(event) { keyboard.onKeydown(event); }, false);
+
+// blink
+function blink(number) {
+blinking = true;
+setTimeout(function() {
+lidl.rotation.set(0,0,Math.PI/2);
+new TWEEN.Tween( lidl.rotation ).to( {x: -Math.PI, y: 0, z: Math.PI/2}, number ).start();
+}, Math.random()*20);
+
+}
+
+
+
+// walk
+Xhero = function() {
+    this.runningCycle = 0;
+    this.mesh = new THREE.Group();
+    this.body = new THREE.Group();
+    this.mesh.add(this.body);
+
+
+this.head = new THREE.Group();
+this.head.position.y = 7;
+this.body.add(this.head);
+this.head.add( character );
+
+}
+
+Xhero.prototype.walk = function(){
+	if (reverse) {
+		    this.runningCycle += .2;
+	} else {
+		    this.runningCycle -= .2;
+	}
+    var t = this.runningCycle;
+    t = t % (2*Math.PI);
+    var amp = 4;
+
+
+    this.head.position.y = 7 - Math.cos(  t * 2 ) * amp * .2;
+    this.head.rotation.x = Math.cos( t ) * amp * .02;
+    this.head.rotation.y =  Math.cos( t ) * amp * .01;
+
+}//
+
+
+//idle
+function idle(){
+    new TWEEN.Tween( xhero.head.position ).to( { x: 0, y: 7, z: 0}, 200 ).start();
+    new TWEEN.Tween( xhero.head.rotation ).to( { x: 0, y: 0, z: 0}, 200 ).start();
+}
+
+// on space>jump
+document.body.onkeyup = function(e){
+  if(e.keyCode == 32){
+xjump();
+  }
+}
+
+
+// jump
+function xjump() {
+scene.getObjectByProperty( 'name', 'tooth', true ).visible = true;
+
+// shadow bounce
+	shdwanim = new TWEEN.Tween( shdw.scale ).to( { x: 1.1, y: 1, z: 1.1}, 80 ).start();
+
+//character jump	
+    tweenA = new TWEEN.Tween( character.scale ).to( { x: 10.5, y: 9, z: 10.5}, 80 )
+    .onComplete(function() { 
+        tweenB = new TWEEN.Tween( character.position ).to( { x: 0, y: 20, z: 0}, 100 )
+        .onComplete(function() { 
+        	new TWEEN.Tween( shdw.scale ).to( { x: 0.9, y: 1, z: 0.9}, 100 ).start();
+            tweenX = new TWEEN.Tween( character.scale ).to( { x: 9.5, y: 10, z: 9.5}, 120 )
+            .onComplete(function() {  xfall(); }).start();
+        }).start();
+    }).start();
+		mesh.morphTargetInfluences[4] = 1; 
+}
+
+function xfall() {
+	shdwanim = new TWEEN.Tween( shdw.scale ).to( { x: 1, y: 1, z: 1}, 150 ).start();
+
+
+    tweenZ = new TWEEN.Tween( character.position ).to( { x: 0, y: 0, z: 0}, 75 ).delay(80)
+		.onComplete(function() {   
+        mesh.morphTargetInfluences[4] = 0;
+            tweenX0 = new TWEEN.Tween( character.scale ).to( { x: 10.5, y: 9, z: 10.5}, 75 )
+            .onComplete(function() {
+                tweenZ = new TWEEN.Tween( character.scale ).to( { x: 10, y: 10, z: 10}, 75 ).start();
+			        blink(100);
+			        // mesh.morphTargetInfluences[0] = 1;
+			        scene.getObjectByProperty( 'name', 'tooth', true ).visible = false;
+            }).start();
+    }).start();                
+}
+
+
+
+// loop
+var animate = function () {
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+	playerupdate();
+    TWEEN.update();
+	// if ( Math.random() > 0.99) { blink(); }  
+};
+
+xhero = new Xhero();
+hero.add(xhero.mesh);
+xhero.mesh.scale.set(0.1,0.1,0.1);
+xhero.mesh.position.set(0,-0.3,0.5);
+xhero.mesh.rotation.set(0,Math.PI/2,0);
+animate();
+</script>
+
+
+<script>
+var source;
+var songLength;
+var audioLength = 2337;
+var eyeanim = 300;
+var bubble = document.getElementById('output');  
+
+
+function mouth_m() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf0.start();}
+if (mesh.morphTargetInfluences[0] === 0) {tweenm.start();}
+if (mesh.morphTargetInfluences[4] === 1) {tweena0.start();}
+if (mesh.morphTargetInfluences[1] === 1) {tweeno0.start();}
+if (mesh.morphTargetInfluences[3] === 1) {tweenee0.start();}
+}
+
+function mouth_o() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf0.start();}
+if (mesh.morphTargetInfluences[1] === 0) {tweeno.start();}
+if (mesh.morphTargetInfluences[4] === 1) {tweena0.start();}
+if (mesh.morphTargetInfluences[0] === 1) {tweenm0.start();}
+if (mesh.morphTargetInfluences[3] === 1) {tweenee0.start();}
+}
+
+function mouth_a() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf0.start();}
+if (mesh.morphTargetInfluences[4] === 0) {tweena.start();}
+if (mesh.morphTargetInfluences[1] === 1) {tweeno0.start();}
+if (mesh.morphTargetInfluences[0] === 1) {tweenm0.start();}
+if (mesh.morphTargetInfluences[3] === 1) {tweenee0.start();}
+}
+
+function mouth_reset() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf0.start();}
+if (mesh.morphTargetInfluences[1] === 1) {tweeno0.start();}
+if (mesh.morphTargetInfluences[4] === 1) {tweena0.start();}
+if (mesh.morphTargetInfluences[0] === 1) {tweenm0.start();}
+if (mesh.morphTargetInfluences[3] === 0) {tweenee.start();}
+}
+
+function mouth_smile() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf0.start();}
+if (mesh.morphTargetInfluences[1] === 1) {tweeno0.start();}
+if (mesh.morphTargetInfluences[4] === 1) {tweena0.start();}
+if (mesh.morphTargetInfluences[0] === 1) {tweenm0.start();}
+if (mesh.morphTargetInfluences[3] === 0) {tweenee.start();}
+}
+
+function mouth_f() {
+if (mesh.morphTargetInfluences[2] === 1) {tweenf.start();}
+if (mesh.morphTargetInfluences[1] === 1) {tweeno0.start();}
+if (mesh.morphTargetInfluences[4] === 1) {tweena0.start();}
+if (mesh.morphTargetInfluences[0] === 1) {tweenm0.start();}
+if (mesh.morphTargetInfluences[3] === 1) {tweenee.start();}
+}
+
+var synth = window.speechSynthesis;
+var voiceSelect = document.querySelector('select');
+var voices = [];
+var pitch = 1;
+var rate = 1;
+var audioplaying = false;
+
+
+// tweenings
+function createTween(influence, start, end) {
+  return new TWEEN.Tween({val: start})
+  .to({val: end}, 50*rate)
+  .onUpdate(function(value) {
+mesh.morphTargetInfluences[influence] = value.val;
+  }).onComplete(function(value) {
+    value.val = start;
+  });
+}
+
+
+
+// create morphs
+var tweenf = createTween(2, 0, 1);
+var tweenm = createTween(0, 0, 1);
+var tweeno = createTween(1, 0, 1);
+var tweena = createTween(4, 0, 1);
+var tweenee = createTween(3, 0, 1);
+// remove morphs
+var tweenf0 = createTween(2, 1, 0);
+var tweenm0 = createTween(0, 1, 0);
+var tweeno0 = createTween(1, 1, 0);
+var tweena0 = createTween(4, 1, 0);
+var tweenee0 = createTween(3, 1, 0);
+
+
+
+// input
+var textfield = document.getElementById('botinput');
+
+// check input for non legal chars
+var txtregex = /[^a-z ^0-9 ?!.,+*():;<>@]/gi;
+//clean the input
+function cleanbf(){
+    if(textfield.value.search(txtregex) > -1) {
+        textfield.value = textfield.value.replace(txtregex, "");
+    }
+}
+
+// phonemes
+var lipz = [];
+
+function lips(ee) {
+lipz = [];
+  // convert letters to phonemes
+    for (var i = 0, len = ee.length; i < len; i++) {
+        if (ee[i] == 'a') { lipz.push("a");}
+        if (ee[i] == 'e') { lipz.push("0");}
+        if (ee[i] == 'i') { lipz.push("0");}
+        if (ee[i] == 'o') { lipz.push("o");}
+        if (ee[i] == 'u') { lipz.push("o");}
+        if (ee[i] == 'q') { lipz.push("o");}
+        if (ee[i] == 'w') { lipz.push("o");}
+        if (ee[i] == 'r') { lipz.push("0");}
+        if (ee[i] == 't') { lipz.push("0");}
+        if (ee[i] == 'g') { lipz.push("m");}
+        if (ee[i] == 'h') { lipz.push("0");}
+        if (ee[i] == 'j') { lipz.push("o");}
+        if (ee[i] == 'x') { lipz.push("0");}
+        if (ee[i] == 'y') { lipz.push("0");}
+        if (ee[i] == 'd') { lipz.push("0");}
+        if (ee[i] == 'k') { lipz.push("0");}
+        if (ee[i] == 's') { lipz.push("0");}
+        if (ee[i] == 'c') { lipz.push("0");}
+        if (ee[i] == 'z') { lipz.push("0");}
+        if (ee[i] == 'm') { lipz.push("m");}
+        if (ee[i] == 'b') { lipz.push("m");}
+        if (ee[i] == 'p') { lipz.push("m");}
+        if (ee[i] == 'l') { lipz.push("0");}
+        if (ee[i] == 'n') { lipz.push("m");}
+        if (ee[i] == 'f') { lipz.push("m");}
+        if (ee[i] == 'v') { lipz.push("m");}
+        if (ee[i] == '') { lipz.push("0");}
+        if (ee[i] == '.') { lipz.push("0");}
+        if (ee[i] == ',') { lipz.push("0");}
+    };
+lipz.push("0")
+lipspk(lipz);
+}
+
+
+function lipspk(lipz) {
+    for (var i = 0; i < lipz.length; i++) {
+// for each phoneme with pause
+(function (i) {  
+    setTimeout(function () {
+        if (lipz[i] == 'a') { mouth_a(); }
+        else if (lipz[i] == 'o') { mouth_o(); }
+        else if (lipz[i] == 'm') { mouth_m(); }
+        else if (lipz[i] == '0') { mouth_reset(); }
+    }, 70/rate * i);
+})(i);
+};
+
+}
+
+
+
+
+function spk(text) {
+  var utterThis = new SpeechSynthesisUtterance(text);
+  var selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+  for(i = 0; i < voices.length ; i++) {
+    if(voices[i].name === selectedOption) {
+      utterThis.voice = voices[i];
+    }
+  }
+  utterThis.pitch = pitch*(text.length * 0.3);
+  utterThis.rate = rate;
+
+
+// change voice
+utterThis.voice = speechSynthesis.getVoices().filter(function(voice) {
+    return voice.name == "Tessa"
+  })[0];
+
+
+  synth.speak(utterThis);
+  bubble.innerHTML = text;
+
+}
+
+
+
+
+// wait for voices to be loaded before fetching list
+window.speechSynthesis.onvoiceschanged = function() {
+    var xvoices = window.speechSynthesis.getVoices();
+};
+//
+
+
+function populateVoiceList() {
+  voices = synth.getVoices();
+
+  for(i = 0; i < voices.length ; i++) {
+    var option = document.createElement('option');
+    option.textContent = voices[i].name + ' (' + voices[i].lang + ')';
+    
+    if(voices[i].default) {
+      option.textContent += ' -- DEFAULT';
+    }
+
+    option.setAttribute('data-lang', voices[i].lang);
+    option.setAttribute('data-name', voices[i].name);
+    voiceSelect.appendChild(option);
+  }
+}
+
+populateVoiceList();
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = populateVoiceList;
+}
+
+
+
+// rant
+function sendrant() {
+if (!speaking) {} else {return;}
+speaking = true;
+scene.getObjectByProperty( 'name', 'tooth', true ).visible = true;
+
+  var saythis = document.getElementById('expert');  
+  var rant = require("rant");
+  var introsentence=rant(saythis.value);
+
+setTimeout(function () {
+   spk(introsentence);
+  lips(introsentence);
+  bubble.innerHTML =  introsentence;
+}, 50);
+
+
+setTimeout(function () {
+speaking = false;
+scene.getObjectByProperty( 'name', 'tooth', true ).visible = false;
+}, 70 * introsentence.length);
+
+
+}// sendrant
+
+
+
+//audio
+function playloop(xn) {
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  source = audioCtx.createBufferSource();
+  request = new XMLHttpRequest();
+
+  request.open('GET', 'loop.wav', true);
+
+  request.responseType = 'arraybuffer';
+  request.onload = function() {
+    var audioData = request.response;
+
+    audioCtx.decodeAudioData(audioData, function(buffer) {
+        myBuffer = buffer;
+        songLength = buffer.duration;
+        source.buffer = myBuffer;
+        source.playbackRate.value = 1;
+        source.loop = true;
+
+var gainNode = audioCtx.createGain()
+gainNode.gain.value = 0.1 // 10% volume
+gainNode.connect(audioCtx.destination)
+source.connect(gainNode)
+
+if (!audioplaying) {} else {return;}
+source.start(0);
+
+var howmany = audioLength;
+if (xn>50){howmany = audioLength*2;}
+if (xn>90){howmany = audioLength*3;}
+
+setTimeout(function () {
+source.playbackRate.value = 0;
+source.stop(0);
+audioplaying = false;
+}, howmany);
+
+      },
+
+      function(e){"Error with decoding audio data" + e.error});
+
+  }
+
+  request.send();
+}	
+
+//
+//commands
+function inptsubmit(){ 
+    var text  = document.getElementById("botinput").innerHTML; 
+    if (text == '') {return;} else {
+        document.getElementById("output").innerHTML = '';
+document.getElementById('botinput').focus();
+}
+//
+var botxt  = document.getElementById("output").value; 
+}
+
+
+
+// send bot message / print to output
+function sendbotmsg() {
+
+    var text  = document.getElementById("botinput").value;
+    if (text !== '') {
+        try {
+            var reply = rs.reply("user", text); 
+            txtreply = reply.replace(/\n/g, "<br>");
+            dreply = txtreply.replace(/\undefined/g," ");
+
+// lipsync
+var liptxt = dreply.toLowerCase().replace(/\?/g, '.');
+   spk(liptxt);
+  lips(liptxt);
+
+document.getElementById('output').innerHTML = dreply;
+document.getElementById("botinput").value = '';
+} catch(e) {
+    window.alert(e.message + "\n" + e.line);
+}
+return false;
+}
+}
+
+
+
+
+
+</script>
+</body>
+</html>
