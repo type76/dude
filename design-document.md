@@ -13,7 +13,7 @@ List your single sentence description of the game that you will use to guide des
 
 ### Design Pillars:
 
-ist up to 3 words/phrases that convey the feeling or emotion you want the player to experience. (Example: *Fast. Action-packed. Mayhem.*)
+List up to 3 words/phrases that convey the feeling or emotion you want the player to experience. (Example: *Fast. Action-packed. Mayhem.*)
 
 **Provocative. Poetic. Deliberate and slow paced.**
 
