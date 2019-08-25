@@ -79,7 +79,7 @@ Include links to music and sound design similar to What you're trying to achieve
 
 * Lots of flutes, harps, synthy relaxing sounds
 
-* Jazz and poetry. A bit like a poetry jam or very slow rap
+* Jazz and poetry. A bit like a poetry jam or very slow rap battle
 
 * [yusuf lateef](https://www.youtube.com/watch?v=MAxdTSc_fts), [autechre](https://www.youtube.com/watch?v=H1i-89_EUOU), [photek](https://www.youtube.com/watch?v=zyL-jS5L4BM)
 
